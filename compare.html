@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Draft Comparison — Revision Coach</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="section-container navbar-inner">
+      <a href="index.html" class="logo"><div class="logo-icon">✎</div><div><span class="logo-text">Revision Coach</span></div></a>
+      <nav class="nav-links" data-nav-desktop></nav>
+      <button type="button" class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+    <div class="section-container mobile-nav" id="mobile-nav" data-nav-mobile></div>
+  </header>
+  <main><div class="section-container" style="padding:2.5rem 1.25rem;" id="page-root"></div></main>
+  <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/mock-ai.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    renderNavFooter("upload");
+    const essayId = getQueryParam("id");
+    let essay = essayId ? getEssay(essayId) : null;
+    if (!essay || essay.versions.length < 1) { window.location.href = "upload.html"; }
+
+    const original = essay.versions[0];
+    const revised = essay.versions[essay.versions.length - 1];
+    let explanations = essay.revisionExplanations || [];
+
+    async function ensureExplanations() {
+      if (explanations.length === 0 && revised.content !== original.content) {
+        showLoading("Generating revision logic explanations...");
+        explanations = await generateRevisionExplanations(original.content, revised.content);
+        essay.revisionExplanations = explanations;
+        saveEssay(essay);
+        hideLoading();
+      }
+    }
+
+    function renderExplanations() {
+      if (!explanations.length) {
+        return `<div class="glass-card empty-state"><p>Save a revision first to see logic explanations.</p><a href="revise.html?id=${essay.id}" class="btn btn-primary mt-4">Go to Revision</a></div>`;
+      }
+      return explanations.map(exp => `
+        <div class="explanation-card">
+          <div class="issue-type">${SUBCATEGORY_LABELS[exp.issueType] || exp.issueType} · ${CATEGORY_LABELS[exp.category]}</div>
+          <div class="explanation-row">
+            <div class="explanation-block original"><div class="label">Original</div>${escapeHtml(exp.original)}</div>
+            <div class="explanation-block revised"><div class="label">Revised</div>${escapeHtml(exp.revised)}</div>
+          </div>
+          <p style="font-size:0.875rem;margin:0.5rem 0;"><strong>Why:</strong> ${exp.reason}</p>
+          <p style="font-size:0.8125rem;color:var(--sage-700);"><strong>Solved:</strong> ${exp.solved}</p>
+        </div>`).join("");
+    }
+
+    function renderCompareView() {
+      document.getElementById("page-root").innerHTML = `
+        ${renderWorkflowBanner("compare")}
+        <div class="flex-between mb-4">
+          <div>
+            <p class="step-label">Revision Logic Explanation</p>
+            <h1>${essay.title}</h1>
+            <p style="color:#64748b;">Understand WHY each change was made — learn the logic, not just the result.</p>
+          </div>
+          <div class="page-actions" style="margin:0;">
+            <a href="revise.html?id=${essay.id}" class="btn btn-outline">Continue Revising</a>
+            <a href="reflect.html?id=${essay.id}" class="btn btn-primary">Writing Reflection →</a>
+          </div>
+        </div>
+        ${renderRoundTimeline(essay)}
+        ${renderScoreProgression(essay)}
+
+        <div id="tab-container">
+          <div class="tab-bar">
+            <button class="tab-btn active" data-tab="side">Side-by-Side</button>
+            <button class="tab-btn" data-tab="logic">Revision Logic (${explanations.length})</button>
+          </div>
+          <div class="tab-content" data-tab="side">
+            <div class="compare-grid">
+              <div class="compare-col">
+                <h4>📄 ${original.label} · ${original.wordCount} words</h4>
+                <div class="compare-text">${escapeHtml(original.content)}</div>
+              </div>
+              <div class="compare-col revised">
+                <h4>✏️ ${revised.label} · ${revised.wordCount} words</h4>
+                <div class="compare-text">${escapeHtml(revised.content)}</div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-content hidden" data-tab="logic">
+            <p style="font-size:0.875rem;color:#64748b;margin-bottom:1rem;">Each change is explained so you learn the writing principle behind it.</p>
+            ${renderExplanations()}
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <p><strong>Ready for the next step?</strong> Request re-scoring to see your band progression, or generate your learning reflection.</p>
+          <a href="revise.html?id=${essay.id}" class="btn btn-outline">Another Revision Round</a>
+          <a href="reflect.html?id=${essay.id}" class="btn btn-primary">Generate Reflection Summary</a>
+        </div>`;
+      bindTabs("tab-container");
+    }
+
+    (async function init() {
+      await ensureExplanations();
+      renderCompareView();
+    })();
+  </script>
+</body>
+</html>

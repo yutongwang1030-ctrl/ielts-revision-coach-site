@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnosis — Revision Coach</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="section-container navbar-inner">
+      <a href="index.html" class="logo"><div class="logo-icon">✎</div><div><span class="logo-text">Revision Coach</span></div></a>
+      <nav class="nav-links" data-nav-desktop></nav>
+      <button type="button" class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+    <div class="section-container mobile-nav" id="mobile-nav" data-nav-mobile></div>
+  </header>
+  <main><div class="section-container" style="padding:2.5rem 1.25rem;" id="page-content"></div></main>
+  <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    renderNavFooter("upload");
+    const essayId = getQueryParam("id");
+    const essay = essayId ? getEssay(essayId) : null;
+    if (!essay || !essay.diagnostic) { window.location.href = "upload.html"; }
+
+    const d = essay.diagnostic;
+    const v0 = essay.versions[0];
+    const isReEval = d.round > 1;
+
+    const criteriaHtml = d.criteria.map((c) => `
+      <div class="glass-card criterion-card">
+        <div class="flex-between">
+          <span style="font-size:0.875rem;font-weight:500;">${c.label}</span>
+          <strong style="color:var(--sage-700);">${c.score}/${c.maxScore}</strong>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${(c.score/c.maxScore)*100}%"></div></div>
+        <p style="font-size:0.8125rem;color:#64748b;margin:0.5rem 0;">${c.summary}</p>
+        ${c.deductions ? `<ul class="deduction-list">${c.deductions.map(x => `<li><span>${x.reason}</span><span class="deduction-impact">${x.impact}</span></li>`).join("")}</ul>` : ""}
+        ${c.actionableAdvice ? `<div class="advice-box">💡 ${c.actionableAdvice}</div>` : ""}
+      </div>`).join("");
+
+    const issuesHtml = d.issues.map((issue) => `
+      <div class="glass-card issue-card">
+        <div class="issue-header">
+          <h4>${issue.title}</h4>
+          <span class="badge ${badgeClass(issue.category)}">${CATEGORY_LABELS[issue.category]}</span>
+          ${issue.subcategory ? `<span class="badge badge-default">${SUBCATEGORY_LABELS[issue.subcategory] || issue.subcategory}</span>` : ""}
+          <span class="badge ${severityBadge(issue.severity)}">${issue.severity}</span>
+        </div>
+        <p style="font-size:0.875rem;color:#475569;">${issue.description}</p>
+        ${issue.location ? `<p style="font-size:0.75rem;color:#94a3b8;font-style:italic;">📍 ${issue.location}</p>` : ""}
+        <div class="suggestion-box"><strong>Suggestion:</strong> ${issue.suggestion}</div>
+        <div class="reflective">💬 ${issue.reflectivePrompt}</div>
+      </div>`).join("");
+
+    document.getElementById("page-content").innerHTML = `
+      ${renderWorkflowBanner("diagnose")}
+      <div class="flex-between mb-4">
+        <div>
+          <p class="step-label">Step 2 — IELTS Diagnosis · Round ${d.round || 1}</p>
+          <h1>${essay.title}</h1>
+          <p style="color:#64748b;">${essay.taskType === "task1" ? "Task 1" : "Task 2"} · ${v0.wordCount} words</p>
+        </div>
+        <div class="page-actions" style="margin:0;">
+          <a href="revise.html?id=${essay.id}" class="btn btn-primary">Start Guided Revision →</a>
+          ${essay.versions.length > 1 ? `<a href="compare.html?id=${essay.id}" class="btn btn-outline">Compare Drafts</a>` : ""}
+        </div>
+      </div>
+
+      ${renderRoundTimeline(essay)}
+      ${renderScoreProgression(essay)}
+
+      <div id="diagnose-grid" style="display:block;">
+        <div style="display:grid;gap:2rem;">
+          <div>
+            <div class="glass-card mb-4" style="background:linear-gradient(135deg,var(--sage-50),white);">
+              <p style="font-size:0.875rem;color:var(--sage-600);font-weight:500;">Estimated Band (IELTS-calibrated)</p>
+              <div style="display:flex;align-items:baseline;gap:0.75rem;">
+                <p class="band-score">${d.overallBandEstimate.toFixed(1)}</p>
+                ${d.improvementDelta != null ? formatBandDelta(d.improvementDelta) : ""}
+              </div>
+              ${isReEval && d.previousBand ? `<p class="band-note">Previous: Band ${d.previousBand} → Now: Band ${d.overallBandEstimate}</p>` : ""}
+              <p class="band-note">Scored against official IELTS criteria. Stricter than generic AI tools.</p>
+            </div>
+            ${criteriaHtml}
+            <div class="glass-card coach-message mb-4">
+              <h3 class="card-title">💬 Coach's Message</h3>
+              <p style="color:#334155;line-height:1.7;">${d.encouragingSummary}</p>
+            </div>
+            <div class="glass-card mb-4">
+              <h3 class="card-title">✓ Strengths</h3>
+              <ul class="strength-list">${d.strengths.map(s => `<li>✓ ${s}</li>`).join("")}</ul>
+            </div>
+            <div class="glass-card">
+              <h3 class="card-title">🎯 Revision Priorities</h3>
+              <ol class="priority-list">${d.revisionPriorities.map((p,i) => `<li><span class="priority-num">${i+1}</span>${p}</li>`).join("")}</ol>
+            </div>
+          </div>
+          <div>
+            <h2 style="font-family:var(--font-display);font-size:1.25rem;color:var(--sage-800);margin-bottom:1rem;">Diagnostic Issues (${d.issues.length})</h2>
+            ${issuesHtml}
+            <div class="action-bar">
+              <p><strong>What's next?</strong> Revise using guided hints, then request a re-evaluation to start Round ${(d.round||1)+1}.</p>
+              <a href="revise.html?id=${essay.id}" class="btn btn-primary">Guided Revision</a>
+              <a href="journey.html" class="btn btn-outline">View Journey</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <style>@media(min-width:1024px){#diagnose-grid>div{grid-template-columns:1fr 1.5fr!important;display:grid!important;}}</style>`;
+  </script>
+</body>
+</html>

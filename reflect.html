@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Writing Reflection — Revision Coach</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="section-container navbar-inner">
+      <a href="index.html" class="logo"><div class="logo-icon">✎</div><div><span class="logo-text">Revision Coach</span></div></a>
+      <nav class="nav-links" data-nav-desktop></nav>
+      <button type="button" class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+    <div class="section-container mobile-nav" id="mobile-nav" data-nav-mobile></div>
+  </header>
+  <main><div class="section-container" style="padding:2.5rem 1.25rem;" id="page-root"></div></main>
+  <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/mock-ai.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    renderNavFooter("journey");
+    const essayId = getQueryParam("id");
+    let essay = essayId ? getEssay(essayId) : null;
+    if (!essay) { window.location.href = "upload.html"; }
+
+    let reflection = essay.reflection;
+
+    function renderReflection() {
+      const r = reflection;
+      document.getElementById("page-root").innerHTML = `
+        ${renderWorkflowBanner("reflect")}
+        <div class="page-header" style="padding-top:0;">
+          <p class="step-label">Writing Reflection & Learning Summary</p>
+          <h1>${essay.title}</h1>
+          <p>Your personalized learning summary — expressions to keep, weaknesses to watch, and priorities ahead.</p>
+        </div>
+
+        <div class="glass-card coach-message mb-6">
+          <h3 class="card-title">💬 Your Coach's Closing Message</h3>
+          <p style="line-height:1.7;color:#334155;">${r.coachMessage}</p>
+        </div>
+
+        <div id="tab-container">
+          <div class="tab-bar">
+            <button class="tab-btn active" data-tab="expressions">Useful Expressions (${r.expressions.length})</button>
+            <button class="tab-btn" data-tab="weaknesses">Weakness Summary</button>
+            <button class="tab-btn" data-tab="habits">Revision Habits</button>
+          </div>
+
+          <div class="tab-content" data-tab="expressions">
+            <p style="font-size:0.875rem;color:#64748b;margin-bottom:1rem;">Save expressions to build your personal writing bank.</p>
+            <div id="expressions-list">${r.expressions.map((e, i) => `
+              <div class="expression-card ${e.saved ? "saved" : ""}" data-idx="${i}">
+                <div>
+                  <strong>${e.phrase}</strong>
+                  <span class="badge badge-default" style="margin-left:0.5rem;">${e.type}</span>
+                  <p style="font-size:0.8125rem;color:#64748b;margin-top:0.25rem;">${e.context}</p>
+                </div>
+                <button type="button" class="save-expr-btn ${e.saved ? "saved" : ""}" data-idx="${i}">${e.saved ? "✓ Saved" : "Save"}</button>
+              </div>`).join("")}</div>
+          </div>
+
+          <div class="tab-content hidden" data-tab="weaknesses">
+            ${r.weaknesses.map(w => `
+              <div class="weakness-card">
+                <div class="flex-between"><span class="pattern">${w.area}: ${w.pattern}</span><span class="freq">${w.frequency}</span></div>
+                <p style="font-size:0.875rem;color:#475569;margin-top:0.5rem;">💡 ${w.advice}</p>
+              </div>`).join("")}
+            <div class="glass-card mt-4">
+              <h3 class="card-title">🎯 Future Priorities</h3>
+              <ol class="priority-list">${r.priorities.map((p,i) => `<li><span class="priority-num">${i+1}</span>${p}</li>`).join("")}</ol>
+            </div>
+          </div>
+
+          <div class="tab-content hidden" data-tab="habits">
+            <div class="glass-card">
+              <h3 class="card-title">Your Revision Habits</h3>
+              <ul class="strength-list">${r.habits.map(h => `<li>📌 ${h}</li>`).join("")}</ul>
+            </div>
+            ${renderScoreProgression(essay)}
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <p>Start a new essay or continue iterating on this one.</p>
+          <a href="upload.html" class="btn btn-primary">New Essay</a>
+          <a href="revise.html?id=${essay.id}" class="btn btn-outline">Another Revision Round</a>
+          <a href="journey.html" class="btn btn-outline">Revision Journey</a>
+        </div>`;
+      bindTabs("tab-container");
+      document.querySelectorAll(".save-expr-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const idx = parseInt(btn.dataset.idx);
+          reflection.expressions[idx].saved = !reflection.expressions[idx].saved;
+          essay.reflection = reflection;
+          saveEssay(essay);
+          renderReflection();
+        });
+      });
+    }
+
+    (async function init() {
+      if (!reflection) {
+        showLoading("Generating your personalized learning summary...");
+        reflection = await generateReflection(essay);
+        essay.reflection = reflection;
+        saveEssay(essay);
+        hideLoading();
+      }
+      renderReflection();
+    })();
+  </script>
+</body>
+</html>

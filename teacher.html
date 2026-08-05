@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Dashboard — Revision Coach</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="section-container navbar-inner">
+      <a href="index.html" class="logo"><div class="logo-icon">✎</div><div><span class="logo-text">Revision Coach</span></div></a>
+      <nav class="nav-links" data-nav-desktop></nav>
+      <button type="button" class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+    <div class="section-container mobile-nav" id="mobile-nav" data-nav-mobile></div>
+  </header>
+  <main>
+    <div class="section-container" style="padding:2.5rem 1.25rem;">
+      <div class="page-header" style="padding-top:0;">
+        <p class="step-label">🎓 Teacher Mode</p>
+        <h1>Student Progress Dashboard</h1>
+        <p>Track multi-round revision cycles, band progression, and recurring weaknesses.</p>
+      </div>
+      <div style="display:grid;gap:2rem;" id="teacher-grid">
+        <div class="glass-card" id="student-list"></div>
+        <div id="student-detail"></div>
+      </div>
+    </div>
+  </main>
+  <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    renderNavFooter("teacher");
+    const data = getAppData();
+    const students = data.students;
+    const allEssays = data.essays.map(migrateEssay);
+    let selectedId = students[0]?.id;
+
+    function renderStudentList() {
+      document.getElementById("student-list").innerHTML = `
+        <h3 class="card-title">👥 Students (${students.length})</h3>
+        ${students.map(s => {
+          const essays = allEssays.filter(e => e.studentId === s.id);
+          const summary = computeSummary(essays);
+          return `<button type="button" class="student-list-item ${s.id===selectedId?"selected":""}" data-id="${s.id}">
+            <strong>${s.name}</strong>
+            ${s.email ? `<p style="font-size:0.75rem;color:#94a3b8;">${s.email}</p>` : ""}
+            <div style="margin-top:0.5rem;display:flex;gap:0.25rem;flex-wrap:wrap;">
+              <span class="badge badge-default">${summary.essayCount} essays</span>
+              ${summary.avgBand > 0 ? `<span class="badge badge-success">Band ${summary.avgBand}</span>` : ""}
+              <span class="badge badge-default">${summary.totalRounds} rounds</span>
+            </div>
+          </button>`;
+        }).join("")}`;
+      document.querySelectorAll(".student-list-item").forEach(btn => {
+        btn.addEventListener("click", () => { selectedId = btn.dataset.id; renderStudentList(); renderDetail(); });
+      });
+    }
+
+    function renderDetail() {
+      const student = students.find(s => s.id === selectedId);
+      if (!student) return;
+      const essays = allEssays.filter(e => e.studentId === student.id);
+      const summary = computeSummary(essays);
+      const weaknesses = [...student.metrics.commonMistakes].sort((a,b) => b.count - a.count).slice(0, 5);
+
+      document.getElementById("student-detail").innerHTML = `
+        <div class="glass-card mb-6">
+          <h3 class="card-title">${student.name}'s Overview</h3>
+          <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:0;">
+            <div style="text-align:center;padding:0.75rem;background:var(--sage-50);border-radius:0.75rem;"><p class="stat-value">${summary.essayCount}</p><p class="stat-label">Essays</p></div>
+            <div style="text-align:center;padding:0.75rem;background:var(--sage-50);border-radius:0.75rem;"><p class="stat-value">${summary.avgBand||"—"}</p><p class="stat-label">Avg Band</p></div>
+            <div style="text-align:center;padding:0.75rem;background:var(--sage-50);border-radius:0.75rem;"><p class="stat-value">${summary.totalRounds}</p><p class="stat-label">Rounds</p></div>
+            <div style="text-align:center;padding:0.75rem;background:var(--sage-50);border-radius:0.75rem;"><p class="stat-value">${summary.totalRevisions}</p><p class="stat-label">Drafts</p></div>
+          </div>
+        </div>
+        ${student.metrics.bandHistory ? `<div class="glass-card mb-6"><h3 class="card-title">Band Progression</h3>${renderScoreProgressionFromHistory(student.metrics.bandHistory, student.metrics.dates)}</div>` : ""}
+        <div class="glass-card mb-6">
+          <h3 class="card-title">Common Weaknesses</h3>
+          ${weaknesses.map(w => `<div class="mistake-row"><span>${CATEGORY_LABELS[w.category]}</span><div style="display:flex;align-items:center;gap:0.5rem;"><div class="mistake-bar-wrap"><div class="mistake-bar" style="width:${Math.min(100,(w.count/15)*100)}%"></div></div><span>${w.count}</span></div></div>`).join("")}
+          ${weaknesses[0]?.subcategories ? `<p style="font-size:0.8125rem;color:#64748b;margin-top:0.75rem;">Top subcategories: ${weaknesses.flatMap(w => w.subcategories || []).slice(0,4).join(", ")}</p>` : ""}
+        </div>
+        <div class="glass-card">
+          <h3 class="card-title">Revision History</h3>
+          ${essays.length === 0 ? "<p style='color:#94a3b8;'>No essays yet.</p>" : essays.map(e => {
+            const prog = getScoreProgression(e);
+            return `<div style="padding:1rem;border:1px solid var(--sage-100);border-radius:0.75rem;margin-bottom:0.75rem;">
+              <div class="flex-between"><strong>${e.title}</strong><span class="badge badge-default">Round ${e.currentRound||1}</span></div>
+              <p style="font-size:0.75rem;color:#94a3b8;margin:0.5rem 0;">${e.versions.length} drafts ${prog.length ? `· Band ${prog[0].band} → ${prog[prog.length-1].band}` : ""}</p>
+              ${renderRoundTimeline(e)}
+              ${e.reflection ? `<p style="font-size:0.8125rem;color:var(--sage-600);margin-top:0.5rem;">✓ Reflection completed</p>` : ""}
+            </div>`;
+          }).join("")}
+        </div>`;
+    }
+
+    function renderScoreProgressionFromHistory(bands, dates) {
+      const max = 9;
+      return `<div class="score-progression">${bands.map((band, i) =>
+        `<div class="score-bar-wrap"><div class="score-bar" style="height:${(band/max)*100}%"></div><span class="score-bar-label">${dates[i]||""}</span><strong style="font-size:0.8rem;">${band}</strong></div>`
+      ).join("")}</div>`;
+    }
+
+    renderStudentList();
+    renderDetail();
+    document.getElementById("teacher-grid").style.gridTemplateColumns = window.innerWidth >= 1024 ? "1fr 2fr" : "1fr";
+  </script>
+</body>
+</html>

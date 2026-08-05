@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Essay — Revision Coach</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="section-container navbar-inner">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">✎</div>
+        <div><span class="logo-text">Revision Coach</span></div>
+      </a>
+      <nav class="nav-links" data-nav-desktop></nav>
+      <button type="button" class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+    <div class="section-container mobile-nav" id="mobile-nav" data-nav-mobile></div>
+  </header>
+
+  <main>
+    <div class="section-container" style="max-width:48rem;padding:2.5rem 1.25rem;">
+      <div class="page-header" style="padding-top:0;">
+        <p class="step-label">✨ Step 1 — Upload Draft</p>
+        <h1>Upload Your Essay</h1>
+        <p>Share your IELTS writing draft. Our AI coach will diagnose areas for improvement — without rewriting your work.</p>
+      </div>
+
+      <div id="error-box" class="error-box hidden"></div>
+
+      <form id="upload-form">
+        <div class="glass-card mb-6">
+          <h3 class="card-title">📝 Essay Details</h3>
+          <div class="form-group">
+            <label for="title">Essay Title</label>
+            <input type="text" id="title" placeholder="e.g. Technology and Modern Life" required />
+          </div>
+          <div class="form-group">
+            <label>Task Type</label>
+            <div class="task-toggle">
+              <button type="button" class="task-btn active" data-task="task2">Task 2 (Essay)</button>
+              <button type="button" class="task-btn" data-task="task1">Task 1 (Report)</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="prompt">Task Prompt (optional)</label>
+            <textarea id="prompt" rows="2" placeholder="Paste the IELTS question prompt here..."></textarea>
+          </div>
+        </div>
+
+        <div class="glass-card mb-6">
+          <div class="flex-between mb-4">
+            <h3 class="card-title" style="margin:0;">Your Draft</h3>
+            <div>
+              <button type="button" id="load-sample" style="background:none;border:none;color:var(--sage-600);font-size:0.875rem;cursor:pointer;font-weight:500;margin-right:0.75rem;">Load sample</button>
+              <span class="word-count" id="word-count">0 words</span>
+            </div>
+          </div>
+          <textarea id="content" rows="16" placeholder="Paste or type your IELTS essay draft here..." required style="font-family:ui-monospace,monospace;font-size:0.875rem;"></textarea>
+          <p class="hint-text">Your essay will be analyzed for improvement areas. The AI will never rewrite your work.</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Analyze & Get Feedback</button>
+      </form>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="section-container footer-bottom">Revision Coach — Learn through revision</div>
+  </footer>
+
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/mock-ai.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    renderNavFooter("upload");
+
+    let taskType = "task2";
+    const taskBtns = document.querySelectorAll(".task-btn");
+    const contentEl = document.getElementById("content");
+    const wordCountEl = document.getElementById("word-count");
+    const errorBox = document.getElementById("error-box");
+
+    taskBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        taskBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        taskType = btn.dataset.task;
+      });
+    });
+
+    contentEl.addEventListener("input", () => {
+      const n = countWords(contentEl.value);
+      wordCountEl.textContent = n + " words";
+      wordCountEl.classList.toggle("warn", taskType === "task2" && n < 250 && n > 0);
+    });
+
+    document.getElementById("load-sample").addEventListener("click", () => {
+      document.getElementById("title").value = "Technology: Complicated or Simplified?";
+      document.getElementById("prompt").value =
+        "Some people believe that technology has made our lives more complicated, while others think it has simplified daily tasks. Discuss both views and give your own opinion.";
+      contentEl.value = SAMPLE_ESSAY;
+      contentEl.dispatchEvent(new Event("input"));
+      taskBtns.forEach((b) => b.classList.toggle("active", b.dataset.task === "task2"));
+      taskType = "task2";
+    });
+
+    document.getElementById("upload-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.classList.add("hidden");
+
+      const title = document.getElementById("title").value.trim();
+      const content = contentEl.value.trim();
+      const prompt = document.getElementById("prompt").value.trim();
+      const wordCount = countWords(content);
+
+      if (!title || !content) {
+        errorBox.textContent = "Please provide a title and essay content.";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+      if (wordCount < 50) {
+        errorBox.textContent = "Your essay should be at least 50 words.";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+
+      showLoading("Analyzing with IELTS-calibrated scoring...");
+      const diagnostic = await analyzeEssay(1);
+      hideLoading();
+
+      const studentId = getCurrentStudentId();
+      const data = getAppData();
+      const student = data.students.find((s) => s.id === studentId);
+      const essayId = generateId();
+      const now = new Date().toISOString();
+      const versionId = "v-" + Date.now();
+
+      const essay = {
+        id: essayId,
+        title,
+        taskType,
+        prompt: prompt || undefined,
+        versions: [{ id: versionId, content, wordCount, createdAt: now, label: "Draft 1" }],
+        diagnostic,
+        errorDetails: diagnostic.errorDetails,
+        hints: [],
+        hintsUnlocked: 1,
+        currentRound: 1,
+        scoringHistory: [{ round: 1, band: diagnostic.overallBandEstimate, diagnostic, versionId, createdAt: now }],
+        revisionRounds: [{ round: 1, startedAt: now, status: "active" }],
+        revisionExplanations: [],
+        reflection: null,
+        status: "diagnosed",
+        createdAt: now,
+        updatedAt: now,
+        studentId,
+        studentName: student?.name || "Student",
+      };
+
+      saveEssay(essay);
+      window.location.href = "diagnose.html?id=" + essayId;
+    });
+  </script>
+</body>
+</html>

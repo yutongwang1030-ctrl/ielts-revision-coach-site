@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Revision Journey — Revision Coach</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="section-container navbar-inner">
+      <a href="index.html" class="logo"><div class="logo-icon">✎</div><div><span class="logo-text">Revision Coach</span></div></a>
+      <nav class="nav-links" data-nav-desktop></nav>
+      <button type="button" class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+    <div class="section-container mobile-nav" id="mobile-nav" data-nav-mobile></div>
+  </header>
+  <main><div class="section-container" style="padding:2.5rem 1.25rem;" id="page-root"></div></main>
+  <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    renderNavFooter("journey");
+    const studentId = getCurrentStudentId();
+    const data = getAppData();
+    const student = data.students.find(s => s.id === studentId);
+    const essays = data.essays.filter(e => e.studentId === studentId).map(migrateEssay);
+    const summary = computeSummary(essays);
+    const m = student?.metrics;
+
+    let selectedEssay = essays[0] || null;
+    let selectedCategory = "all";
+
+    function renderBandChart() {
+      if (!m?.bandHistory) return "";
+      const max = 9;
+      return `<div class="glass-card mb-6">
+        <h3 class="card-title">📈 Band Score Progression</h3>
+        <div class="score-progression">${m.bandHistory.map((band, i) =>
+          `<div class="score-bar-wrap">
+            <div class="score-bar" style="height:${(band/max)*100}%"></div>
+            <span class="score-bar-label">${m.dates[i] || ""}</span>
+            <strong style="font-size:0.8rem;color:var(--sage-700);">${band}</strong>
+          </div>`).join("")}</div>
+      </div>`;
+    }
+
+    function renderErrorExplorer() {
+      if (!selectedEssay) return `<div class="glass-card empty-state"><p>Upload an essay to explore errors.</p></div>`;
+      const errors = selectedEssay.errorDetails || selectedEssay.diagnostic?.errorDetails || [];
+      const categories = [...new Set(errors.map(e => e.category))];
+      const filtered = selectedCategory === "all" ? errors : errors.filter(e => e.category === selectedCategory);
+      const draftText = selectedEssay.versions[0]?.content || "";
+
+      let highlighted = escapeHtml(draftText);
+      const toHighlight = selectedCategory === "all" ? errors : filtered;
+      toHighlight.forEach(err => {
+        highlighted = highlightText(highlighted.replace(/<\/?mark[^>]*>/g, ""), err.text);
+      });
+
+      const catBtns = `<button class="error-cat-btn ${selectedCategory==="all"?"active":""}" data-cat="all">All Errors <span class="count">${errors.length}</span></button>` +
+        categories.map(cat => {
+          const count = errors.filter(e => e.category === cat).length;
+          return `<button class="error-cat-btn ${selectedCategory===cat?"active":""}" data-cat="${cat}">${CATEGORY_LABELS[cat]} <span class="count">${count}</span></button>`;
+        }).join("");
+
+      const errorCards = filtered.map(err => `
+        <div class="error-detail-card">
+          <div class="issue-header">
+            <span class="badge ${badgeClass(err.category)}">${CATEGORY_LABELS[err.category]}</span>
+            <span class="badge badge-default">${SUBCATEGORY_LABELS[err.subcategory] || err.subcategory}</span>
+            <span style="font-size:0.75rem;color:#94a3b8;">¶${err.paragraph}, sentence ${err.sentence}</span>
+          </div>
+          <div class="excerpt">"...${err.excerpt}..."</div>
+          <p style="font-size:0.8125rem;color:#475569;">${err.explanation}</p>
+        </div>`).join("");
+
+      return `<div class="error-explorer">
+        <div>${catBtns}</div>
+        <div>
+          <div class="glass-card mb-4" id="highlight-panel">
+            <h3 class="card-title">📄 Draft 1 with Highlights</h3>
+            <div class="compare-text" style="font-size:0.8125rem;">${highlighted}</div>
+          </div>
+          <h3 style="font-size:1rem;margin-bottom:0.75rem;color:var(--sage-800);">Error Details (${filtered.length})</h3>
+          ${errorCards || "<p style='color:#94a3b8;'>No errors in this category.</p>"}
+        </div>
+      </div>`;
+    }
+
+    function renderTimeline() {
+      if (!essays.length) return `<div class="glass-card empty-state"><div class="icon">📝</div><p>No essays yet.</p><a href="upload.html" class="btn btn-primary mt-4">Upload Draft</a></div>`;
+      return `<div class="timeline">${[...essays].sort((a,b) => new Date(b.updatedAt)-new Date(a.updatedAt)).map(essay => {
+        const prog = getScoreProgression(essay);
+        return `<div class="timeline-item"><div class="timeline-dot"></div><div class="glass-card">
+          <div class="flex-between">
+            <div>
+              <h4>${essay.title}</h4>
+              <p style="font-size:0.75rem;color:#94a3b8;">${essay.versions.length} drafts · Round ${essay.currentRound||1}
+                ${prog.length ? ` · Band ${prog[prog.length-1].band}` : ""}</p>
+              <div style="margin:0.5rem 0;">${essay.versions.map(v => `<span class="version-tag">${v.label}</span>`).join("")}</div>
+              ${renderRoundTimeline(essay)}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.8125rem;">
+              <a href="diagnose.html?id=${essay.id}" style="color:var(--sage-600);">Diagnose →</a>
+              <a href="compare.html?id=${essay.id}" style="color:var(--sage-600);">Compare →</a>
+              <a href="reflect.html?id=${essay.id}" style="color:var(--sage-600);">Reflect →</a>
+            </div>
+          </div>
+        </div></div>`;
+      }).join("")}</div>`;
+    }
+
+    function renderPage() {
+      document.getElementById("page-root").innerHTML = `
+        <div class="page-header" style="padding-top:0;">
+          <p class="step-label">Your Progress</p>
+          <h1>Revision Journey</h1>
+          <p>Track drafts, band progression, and explore errors in detail.</p>
+        </div>
+        <div class="stat-grid">
+          <div class="glass-card stat-card"><div style="width:2.5rem;height:2.5rem;background:var(--sage-100);border-radius:0.75rem;display:flex;align-items:center;justify-content:center;">📝</div><div><p class="stat-value">${summary.essayCount}</p><p class="stat-label">Essays</p></div></div>
+          <div class="glass-card stat-card"><div style="width:2.5rem;height:2.5rem;background:var(--sage-100);border-radius:0.75rem;display:flex;align-items:center;justify-content:center;">📈</div><div><p class="stat-value">${summary.avgBand||"—"}</p><p class="stat-label">Avg Band</p></div></div>
+          <div class="glass-card stat-card"><div style="width:2.5rem;height:2.5rem;background:var(--sage-100);border-radius:0.75rem;display:flex;align-items:center;justify-content:center;">🔄</div><div><p class="stat-value">${summary.totalRounds}</p><p class="stat-label">Revision Rounds</p></div></div>
+          <div class="glass-card stat-card"><div style="width:2.5rem;height:2.5rem;background:var(--sage-100);border-radius:0.75rem;display:flex;align-items:center;justify-content:center;">✏️</div><div><p class="stat-value">${summary.totalRevisions}</p><p class="stat-label">Drafts Saved</p></div></div>
+        </div>
+        ${renderBandChart()}
+        <div id="tab-container">
+          <div class="tab-bar">
+            <button class="tab-btn active" data-tab="errors">Error Explorer</button>
+            <button class="tab-btn" data-tab="timeline">Essay Timeline</button>
+          </div>
+          <div class="tab-content" data-tab="errors">
+            ${essays.length ? `<div class="mb-4"><label>Select essay: </label><select id="essay-select" style="max-width:20rem;margin-top:0.25rem;">${essays.map(e => `<option value="${e.id}" ${e.id===selectedEssay?.id?"selected":""}>${e.title}</option>`).join("")}</select></div>` : ""}
+            <div id="error-explorer">${renderErrorExplorer()}</div>
+          </div>
+          <div class="tab-content hidden" data-tab="timeline">${renderTimeline()}</div>
+        </div>`;
+      bindTabs("tab-container");
+      bindErrorExplorer();
+    }
+
+    function bindErrorExplorer() {
+      document.querySelectorAll(".error-cat-btn").forEach(btn => {
+        btn.addEventListener("click", () => { selectedCategory = btn.dataset.cat; document.getElementById("error-explorer").innerHTML = renderErrorExplorer(); bindErrorExplorer(); });
+      });
+      const sel = document.getElementById("essay-select");
+      if (sel) sel.addEventListener("change", () => { selectedEssay = essays.find(e => e.id === sel.value); selectedCategory = "all"; document.getElementById("error-explorer").innerHTML = renderErrorExplorer(); bindErrorExplorer(); });
+    }
+
+    renderPage();
+  </script>
+</body>
+</html>

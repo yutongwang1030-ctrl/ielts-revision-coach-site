@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guided Revision — Revision Coach</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="section-container navbar-inner">
+      <a href="index.html" class="logo"><div class="logo-icon">✎</div><div><span class="logo-text">Revision Coach</span></div></a>
+      <nav class="nav-links" data-nav-desktop></nav>
+      <button type="button" class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+    <div class="section-container mobile-nav" id="mobile-nav" data-nav-mobile></div>
+  </header>
+  <main><div class="section-container" style="padding:2.5rem 1.25rem;" id="page-root"></div></main>
+  <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/mock-ai.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    renderNavFooter("upload");
+    const essayId = getQueryParam("id");
+    let essay = essayId ? getEssay(essayId) : null;
+    if (!essay) { window.location.href = "upload.html"; }
+
+    let currentLayer = essay.hintsUnlocked || 1;
+    let hints = essay.hints?.length ? essay.hints : [];
+    let content = essay.versions[essay.versions.length - 1].content;
+    const LAYER_NAMES = ["", "Big Picture", "Paragraph Level", "Sentence Level"];
+
+    function renderHintCard(hint) {
+      const locked = !hint.unlocked;
+      return `<div class="glass-card hint-card ${locked ? "locked" : ""}">
+        <div class="hint-inner">
+          <div class="hint-icon ${locked ? "locked" : "unlocked"}">${locked ? "🔒" : "💡"}</div>
+          <div style="flex:1;">
+            <div class="issue-header"><h4>${hint.title}</h4>
+              <span class="badge ${badgeClass(hint.focusArea)}">${CATEGORY_LABELS[hint.focusArea]}</span>
+            </div>
+            ${locked ? "<p style='font-size:0.875rem;color:#94a3b8;'>Complete previous layer first.</p>"
+              : `<p style="font-size:0.875rem;color:#475569;">${hint.hint}</p>
+                 <div class="suggestion-box" style="background:var(--coral-50);"><em>❓ ${hint.reflectiveQuestion}</em></div>`}
+          </div>
+        </div>
+      </div>`;
+    }
+
+    function renderHintsPanel() {
+      const layerHints = hints.filter(h => h.layer === currentLayer);
+      const unlockBtn = currentLayer < 3 ? `<button type="button" class="unlock-btn" id="unlock-next">Applied Layer ${currentLayer} — unlock Layer ${currentLayer+1}</button>` : "";
+      return `<div class="layer-tabs">${[1,2,3].map(l => `<button type="button" class="layer-tab ${l===currentLayer?"active":l<currentLayer?"done":""}" data-layer="${l}">L${l}: ${LAYER_NAMES[l]}</button>`).join("")}</div>
+        <div id="hints-list">${layerHints.map(renderHintCard).join("")}</div>${unlockBtn}`;
+    }
+
+    function renderPage() {
+      const wc = countWords(content);
+      const round = essay.currentRound || 1;
+      document.getElementById("page-root").innerHTML = `
+        ${renderWorkflowBanner("revise")}
+        <div class="flex-between mb-4">
+          <div>
+            <p class="step-label">Step 3 — Guided Revision · Round ${round}</p>
+            <h1>${essay.title}</h1>
+            <span class="badge badge-success">${essay.versions.length} draft(s)</span>
+            <span class="badge badge-default">Layer ${currentLayer}/3</span>
+          </div>
+          <div class="page-actions" style="margin:0;">
+            <a href="diagnose.html?id=${essay.id}" class="btn btn-outline">Diagnosis</a>
+            <button type="button" class="btn btn-primary" id="save-btn">💾 Save Revision</button>
+          </div>
+        </div>
+        ${renderRoundTimeline(essay)}
+        <div style="display:grid;gap:2rem;">
+          <div><h2 style="font-family:var(--font-display);font-size:1.125rem;margin-bottom:1rem;">Revision Hints</h2><div id="hints-panel">${renderHintsPanel()}</div></div>
+          <div class="glass-card">
+            <div class="flex-between mb-4"><h3 class="card-title" style="margin:0;">✏️ Your Revision</h3><span class="word-count">${wc} words</span></div>
+            <textarea id="revision-editor" rows="20" style="font-family:ui-monospace,monospace;font-size:0.875rem;"></textarea>
+            <p class="hint-text">Revise in your own words. The AI guides — it never rewrites for you.</p>
+          </div>
+        </div>
+        <div class="action-bar" id="post-save-actions" style="display:none;">
+          <p><strong>Revision saved!</strong> Compare your changes, request re-scoring, or start another cycle.</p>
+          <a href="compare.html?id=${essay.id}" class="btn btn-primary">View Revision Logic →</a>
+          <button type="button" class="btn btn-secondary" id="reeval-btn">Request Re-Evaluation</button>
+          <a href="reflect.html?id=${essay.id}" class="btn btn-outline">Writing Reflection</a>
+        </div>
+        <style>@media(min-width:1024px){#page-root>div:nth-of-type(3){grid-template-columns:1fr 1fr;display:grid;}}</style>`;
+      document.getElementById("revision-editor").value = content;
+      bindEvents();
+    }
+
+    async function loadLayerHints(layer) {
+      if (hints.some(h => h.layer === layer)) return;
+      const newHints = await getHints(layer);
+      hints = hints.filter(h => h.layer !== layer).concat(newHints.map(h => ({ ...h, unlocked: layer <= currentLayer })));
+    }
+
+    function bindEvents() {
+      document.querySelectorAll(".layer-tab").forEach(tab => {
+        tab.addEventListener("click", async () => {
+          const layer = parseInt(tab.dataset.layer);
+          if (layer <= currentLayer) {
+            currentLayer = layer;
+            await loadLayerHints(layer);
+            document.getElementById("hints-panel").innerHTML = renderHintsPanel();
+            bindEvents();
+          }
+        });
+      });
+      const unlockBtn = document.getElementById("unlock-next");
+      if (unlockBtn) unlockBtn.addEventListener("click", async () => {
+        currentLayer++;
+        hints = hints.map(h => ({ ...h, unlocked: h.layer <= currentLayer }));
+        await loadLayerHints(currentLayer);
+        document.getElementById("hints-panel").innerHTML = renderHintsPanel();
+        bindEvents();
+      });
+
+      document.getElementById("revision-editor").addEventListener("input", e => { content = e.target.value; });
+
+      document.getElementById("save-btn").addEventListener("click", async () => {
+        showLoading("Analyzing your revision logic...");
+        const original = essay.versions[0].content;
+        const explanations = await generateRevisionExplanations(original, content);
+        hideLoading();
+
+        const now = new Date().toISOString();
+        const versionNum = essay.versions.length;
+        essay.versions.push({ id: "v-" + Date.now(), content, wordCount: countWords(content), createdAt: now, label: `Draft ${versionNum + 1}` });
+        essay.revisionExplanations = explanations;
+        essay.hints = hints;
+        essay.hintsUnlocked = currentLayer;
+        essay.status = "revising";
+        essay.updatedAt = now;
+        saveEssay(essay);
+
+        document.getElementById("save-btn").textContent = "✓ Saved!";
+        document.getElementById("post-save-actions").style.display = "flex";
+        renderPage();
+        document.getElementById("post-save-actions").style.display = "flex";
+        bindReEval();
+      });
+    }
+
+    function bindReEval() {
+      const btn = document.getElementById("reeval-btn");
+      if (!btn) return;
+      btn.addEventListener("click", async () => {
+        showLoading("Re-evaluating with IELTS-calibrated scoring...");
+        const prevBand = essay.diagnostic?.overallBandEstimate;
+        const nextRound = (essay.currentRound || 1) + 1;
+        const diagnostic = await reEvaluateEssay(nextRound, prevBand);
+        const now = new Date().toISOString();
+        const latestVersion = essay.versions[essay.versions.length - 1];
+
+        essay.diagnostic = diagnostic;
+        essay.errorDetails = diagnostic.errorDetails;
+        essay.currentRound = nextRound;
+        essay.scoringHistory = essay.scoringHistory || [];
+        essay.scoringHistory.push({ round: nextRound, band: diagnostic.overallBandEstimate, diagnostic, versionId: latestVersion.id, createdAt: now });
+        essay.revisionRounds.push({ round: nextRound, startedAt: now, status: "active" });
+        essay.hints = [];
+        essay.hintsUnlocked = 1;
+        essay.status = "diagnosed";
+        essay.updatedAt = now;
+        saveEssay(essay);
+        hideLoading();
+        window.location.href = "diagnose.html?id=" + essay.id;
+      });
+    }
+
+    (async function init() {
+      await loadLayerHints(1);
+      for (let l = 2; l <= currentLayer; l++) await loadLayerHints(l);
+      hints = hints.map(h => ({ ...h, unlocked: h.layer <= currentLayer }));
+      renderPage();
+      if (essay.versions.length > 1) {
+        document.getElementById("post-save-actions").style.display = "flex";
+        bindReEval();
+      }
+    })();
+  </script>
+</body>
+</html>
