@@ -522,6 +522,162 @@ section {
   color: var(--slate-500);
 }
 
+.revision-task-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.revision-task-card {
+  border: 1px solid var(--sage-100);
+}
+
+.revision-task-card.compact {
+  padding: 1rem 1.1rem;
+}
+
+.revision-task-card.resolved {
+  border-color: var(--sage-500);
+  background: linear-gradient(135deg, rgba(232, 239, 232, 0.9), rgba(255, 255, 255, 0.95));
+}
+
+.revision-task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.revision-task-header h4 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--sage-800);
+}
+
+.revision-task-meta {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.revision-task-order,
+.score-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sage-500);
+  font-weight: 700;
+}
+
+.revision-task-location {
+  font-size: 0.78rem;
+  color: var(--slate-500);
+  margin-bottom: 0.8rem;
+}
+
+.revision-task-block {
+  margin-bottom: 0.75rem;
+}
+
+.revision-task-block strong {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--sage-800);
+  margin-bottom: 0.15rem;
+}
+
+.revision-task-block p {
+  color: var(--slate-600);
+}
+
+.revision-action-block {
+  background: var(--coral-50);
+  border: 1px solid var(--coral-100);
+  border-radius: 0.9rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.revision-checkline {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.85rem;
+  color: var(--sage-800);
+  font-weight: 500;
+}
+
+.revision-checkline input {
+  width: 1rem;
+  height: 1rem;
+}
+
+.checklist-summary-card,
+.score-comparison-card,
+.score-closure-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.checklist-progress {
+  min-width: 7rem;
+  text-align: center;
+  background: var(--sage-50);
+  border: 1px solid var(--sage-100);
+  border-radius: 1rem;
+  padding: 0.8rem 1rem;
+}
+
+.checklist-progress strong {
+  display: block;
+  font-size: 1.35rem;
+  color: var(--sage-800);
+}
+
+.checklist-progress span,
+.score-comparison-note,
+.score-closure-hint {
+  font-size: 0.82rem;
+  color: var(--slate-500);
+}
+
+.score-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+}
+
+.score-number {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--sage-800);
+  line-height: 1.1;
+}
+
+.score-number.positive {
+  color: var(--sage-600);
+}
+
+.score-number.negative {
+  color: var(--coral-700);
+}
+
+@media (max-width: 767px) {
+  .revision-task-header,
+  .checklist-summary-card,
+  .score-comparison-card,
+  .score-closure-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .score-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Steps */
 .steps {
   display: grid;
