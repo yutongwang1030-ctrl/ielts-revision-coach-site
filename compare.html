@@ -18,25 +18,24 @@
   </header>
   <main><div class="section-container" style="padding:2.5rem 1.25rem;" id="page-root"></div></main>
   <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/config.js"></script>
   <script src="assets/js/storage.js"></script>
   <script src="assets/js/mock-ai.js"></script>
   <script src="assets/js/app.js"></script>
   <script>
     renderNavFooter("upload");
-    const essayId = getQueryParam("id");
-    let essay = essayId ? getEssay(essayId) : null;
-    if (!essay || essay.versions.length < 1) { window.location.href = "upload.html"; }
-
-    const original = essay.versions[0];
-    const revised = essay.versions[essay.versions.length - 1];
-    let explanations = essay.revisionExplanations || [];
+    let essay;
+    let original;
+    let revised;
+    let explanations = [];
 
     async function ensureExplanations() {
       if (explanations.length === 0 && revised.content !== original.content) {
         showLoading("Generating revision logic explanations...");
         explanations = await generateRevisionExplanations(original.content, revised.content);
         essay.revisionExplanations = explanations;
-        saveEssay(essay);
+        essay = await saveEssay(essay);
         hideLoading();
       }
     }
@@ -106,6 +105,21 @@
     }
 
     (async function init() {
+      const state = await initPage({ requireAuth: true, containerId: "page-root" });
+      if (state.redirected) return;
+      if (!state.configured) {
+        renderSetupRequired("page-root", "Add your Supabase keys in assets/js/config.js first.");
+        return;
+      }
+      const essayId = getQueryParam("id");
+      essay = essayId ? await getEssay(essayId) : null;
+      if (!essay || essay.versions.length < 1) {
+        window.location.href = "upload.html";
+        return;
+      }
+      original = essay.versions[0];
+      revised = essay.versions[essay.versions.length - 1];
+      explanations = essay.revisionExplanations || [];
       await ensureExplanations();
       renderCompareView();
     })();
