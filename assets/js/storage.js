@@ -1,12 +1,12 @@
 const STORAGE_KEY = "ielts-revision-data";
 
 const DEFAULT_METRICS = {
-  grammarAccuracy: [52, 55, 58, 62, 66],
-  vocabularyScore: [48, 52, 56, 60, 64],
-  coherenceScore: [45, 50, 54, 58, 62],
-  revisionCount: [1, 2, 1, 3, 2],
-  bandHistory: [5.5, 5.5, 6.0, 6.0, 6.5],
-  dates: ["Jan 5", "Jan 12", "Jan 19", "Jan 26", "Feb 2"],
+  grammarAccuracy: [],
+  vocabularyScore: [],
+  coherenceScore: [],
+  revisionCount: [],
+  bandHistory: [],
+  dates: [],
   commonMistakes: [
     { category: "grammar", count: 12, subcategories: ["article misuse", "tense inconsistency", "sentence fragments"] },
     { category: "vocabulary", count: 8, subcategories: ["repetitive wording", "informal expressions", "inaccurate collocations"] },
@@ -24,12 +24,34 @@ const DEFAULT_METRICS = {
   ],
 };
 
+function createEmptyMetrics() {
+  return JSON.parse(JSON.stringify(DEFAULT_METRICS));
+}
+
 function defaultStudents() {
   return [
-    { id: "student-demo", name: "Alex Chen", email: "alex@example.com", essays: [], metrics: JSON.parse(JSON.stringify(DEFAULT_METRICS)) },
-    { id: "student-2", name: "Maria Santos", email: "maria@example.com", essays: [], metrics: JSON.parse(JSON.stringify(DEFAULT_METRICS)) },
-    { id: "student-3", name: "James Park", email: "james@example.com", essays: [], metrics: JSON.parse(JSON.stringify(DEFAULT_METRICS)) },
+    { id: "student-demo", name: "Alex Chen", email: "alex@example.com", essays: [], metrics: createEmptyMetrics() },
+    { id: "student-2", name: "Maria Santos", email: "maria@example.com", essays: [], metrics: createEmptyMetrics() },
+    { id: "student-3", name: "James Park", email: "james@example.com", essays: [], metrics: createEmptyMetrics() },
   ];
+}
+
+function normalizeAppData(data) {
+  if (!data || !Array.isArray(data.students)) return data;
+  const essays = Array.isArray(data.essays) ? data.essays : [];
+
+  data.students.forEach((student) => {
+    if (!student.metrics) student.metrics = createEmptyMetrics();
+    if (!Array.isArray(student.essays)) student.essays = [];
+
+    const hasSavedEssay = essays.some((essay) => essay.studentId === student.id);
+    if (!hasSavedEssay) {
+      student.metrics = createEmptyMetrics();
+      student.essays = [];
+    }
+  });
+
+  return data;
 }
 
 function getAppData() {
@@ -40,7 +62,7 @@ function getAppData() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
       return initial;
     }
-    return JSON.parse(raw);
+    return normalizeAppData(JSON.parse(raw));
   } catch {
     return { students: defaultStudents(), essays: [] };
   }
