@@ -179,12 +179,17 @@
     });
 
     (async function initUploadPage() {
-      const state = await initPage({ requireAuth: true, containerId: "error-box" });
-      if (state.redirected) return;
-      if (!state.configured) {
-        errorBox.textContent = "Supabase is not configured yet. Fill in assets/js/config.js before using live uploads.";
+      try {
+        const state = await initPage({ requireAuth: true, containerId: "error-box" });
+        if (state.redirected) return;
+        if (!state.configured) {
+          errorBox.textContent = "Supabase is not configured yet. Fill in assets/js/config.js before using live uploads.";
+          errorBox.classList.remove("hidden");
+          return;
+        }
+      } catch (error) {
+        errorBox.textContent = error?.message || "We could not verify your login status.";
         errorBox.classList.remove("hidden");
-        return;
       }
     })();
   </script>
