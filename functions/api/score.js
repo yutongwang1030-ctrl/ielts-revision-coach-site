@@ -14,6 +14,17 @@ function roundBand(value) {
   return Math.round(value * 2) / 2;
 }
 
+function getRuntimeEnv(env = {}) {
+  return {
+    SUPABASE_URL: env.SUPABASE_URL || "https://gfjehljokdxbucgltykc.supabase.co",
+    SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY || "sb_publishable_n-ZHGrqY77-PMyOn24ivcg_-aRR8xwA",
+    ENABLE_MOCK_SCORING: env.ENABLE_MOCK_SCORING || "true",
+    AI_API_KEY: env.AI_API_KEY || "",
+    AI_API_URL: env.AI_API_URL || "",
+    AI_MODEL: env.AI_MODEL || "",
+  };
+}
+
 function buildMockDiagnostic(round = 1, previousBand = null) {
   const scoreTable = {
     1: { taskResponse: 5.5, coherenceCohesion: 5.0, lexicalResource: 5.5, grammaticalRange: 5.0 },
@@ -270,11 +281,12 @@ export async function onRequestOptions() {
 
 export async function onRequestPost(context) {
   try {
+    const runtimeEnv = getRuntimeEnv(context.env);
     const authHeader = context.request.headers.get("Authorization") || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     if (!token) return json({ error: "Missing auth token." }, 401);
 
-    const user = await verifySupabaseUser(token, context.env);
+    const user = await verifySupabaseUser(token, runtimeEnv);
     if (!user) return json({ error: "Invalid login session." }, 401);
 
     const body = await context.request.json();
@@ -283,10 +295,10 @@ export async function onRequestPost(context) {
     }
 
     let diagnostic;
-    if (context.env.ENABLE_MOCK_SCORING === "true" || !context.env.AI_API_KEY) {
+    if (runtimeEnv.ENABLE_MOCK_SCORING === "true" || !runtimeEnv.AI_API_KEY) {
       diagnostic = buildMockDiagnostic(body.round || 1, body.previousBand ?? null);
     } else {
-      diagnostic = await requestProviderScore(body, context.env);
+      diagnostic = await requestProviderScore(body, runtimeEnv);
     }
 
     return json({
