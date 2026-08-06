@@ -330,10 +330,25 @@ async function refreshAuthUI() {
   }
 
   authSlotNodes.forEach((node) => {
+    const isMobile = node.classList.contains("mobile-auth-slot");
     if (user) {
+      const displayName = profile?.full_name || user.user_metadata?.full_name || user.email || "Student";
+      const displayEmail = user.email || "";
+      const avatarInitial = (displayName || displayEmail || "S").trim().charAt(0).toUpperCase();
       node.innerHTML = `
-        <span class="nav-user">${escapeHtml(profile?.full_name || user.email || "Student")}</span>
-        <button type="button" class="btn btn-outline btn-sm" data-sign-out>Sign Out</button>
+        <div class="${isMobile ? "mobile-account-card" : "nav-account-card"}">
+          <div class="nav-account-summary">
+            <div class="nav-avatar" aria-hidden="true">${escapeHtml(avatarInitial)}</div>
+            <div class="nav-account-meta">
+              <span class="nav-user">${escapeHtml(displayName)}</span>
+              <span class="nav-user-email">${escapeHtml(displayEmail)}</span>
+            </div>
+          </div>
+          <div class="nav-account-actions">
+            <a href="journey.html" class="btn btn-outline btn-sm">My Journey</a>
+            <button type="button" class="btn btn-outline btn-sm" data-sign-out>Sign Out</button>
+          </div>
+        </div>
       `;
     } else {
       node.innerHTML = `<a href="auth.html" class="btn btn-primary btn-sm">Sign In</a>`;
