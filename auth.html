@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Revision Coach</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="section-container navbar-inner">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">✎</div>
+        <div><span class="logo-text">Revision Coach</span></div>
+      </a>
+      <nav class="nav-links" data-nav-desktop></nav>
+      <button type="button" class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+    <div class="section-container mobile-nav" id="mobile-nav" data-nav-mobile></div>
+  </header>
+
+  <main>
+    <div class="section-container" style="max-width:34rem;padding:2.5rem 1.25rem;" id="auth-root">
+      <div class="page-header" style="padding-top:0;">
+        <p class="step-label">Secure Student Access</p>
+        <h1>Sign In or Create Your Account</h1>
+        <p>Students need an account so their essays, scores, and revision history can be saved securely in the cloud.</p>
+      </div>
+
+      <div class="glass-card" id="auth-card">
+        <div class="tab-bar" style="margin-bottom:1.5rem;">
+          <button class="tab-btn active" data-auth-tab="signin">Sign In</button>
+          <button class="tab-btn" data-auth-tab="signup">Create Account</button>
+        </div>
+
+        <div id="setup-warning" class="error-box hidden"></div>
+        <div id="auth-error" class="error-box hidden"></div>
+        <div id="auth-success" class="success-box hidden"></div>
+
+        <form id="signin-form">
+          <div class="form-group">
+            <label for="signin-email">Email</label>
+            <input type="email" id="signin-email" required placeholder="student@example.com" />
+          </div>
+          <div class="form-group">
+            <label for="signin-password">Password</label>
+            <input type="password" id="signin-password" required minlength="6" placeholder="At least 6 characters" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+        </form>
+
+        <form id="signup-form" class="hidden">
+          <div class="form-group">
+            <label for="signup-name">Full Name</label>
+            <input type="text" id="signup-name" required placeholder="Student name" />
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email</label>
+            <input type="email" id="signup-email" required placeholder="student@example.com" />
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <input type="password" id="signup-password" required minlength="6" placeholder="At least 6 characters" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+        </form>
+
+        <p class="hint-text" style="margin-top:1rem;">If Supabase email confirmation is enabled, new students may need to click a confirmation email before signing in.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="section-container footer-bottom">Revision Coach</div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    renderNavFooter("home");
+
+    const returnTo = getQueryParam("returnTo") || "journey.html";
+    const setupWarning = document.getElementById("setup-warning");
+    const errorBox = document.getElementById("auth-error");
+    const successBox = document.getElementById("auth-success");
+    const signInForm = document.getElementById("signin-form");
+    const signUpForm = document.getElementById("signup-form");
+
+    function setAuthTab(tab) {
+      document.querySelectorAll("[data-auth-tab]").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.authTab === tab);
+      });
+      signInForm.classList.toggle("hidden", tab !== "signin");
+      signUpForm.classList.toggle("hidden", tab !== "signup");
+      errorBox.classList.add("hidden");
+      successBox.classList.add("hidden");
+    }
+
+    document.querySelectorAll("[data-auth-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => setAuthTab(btn.dataset.authTab));
+    });
+
+    (async function initAuthPage() {
+      if (!isSupabaseConfigured()) {
+        setupWarning.classList.remove("hidden");
+        setupWarning.textContent = "Supabase credentials are still blank. Fill in assets/js/config.js before using the live login system.";
+        return;
+      }
+
+      const user = await getCurrentUser();
+      if (user) {
+        window.location.href = returnTo;
+      }
+    })();
+
+    signInForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.classList.add("hidden");
+      successBox.classList.add("hidden");
+      try {
+        showLoading("Signing you in...");
+        await signInWithEmail({
+          email: document.getElementById("signin-email").value.trim(),
+          password: document.getElementById("signin-password").value,
+        });
+        hideLoading();
+        window.location.href = returnTo;
+      } catch (error) {
+        hideLoading();
+        errorBox.classList.remove("hidden");
+        errorBox.textContent = error.message || "Sign in failed.";
+      }
+    });
+
+    signUpForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.classList.add("hidden");
+      successBox.classList.add("hidden");
+      try {
+        showLoading("Creating your account...");
+        const result = await signUpWithEmail({
+          fullName: document.getElementById("signup-name").value.trim(),
+          email: document.getElementById("signup-email").value.trim(),
+          password: document.getElementById("signup-password").value,
+        });
+        hideLoading();
+
+        if (result.session) {
+          window.location.href = returnTo;
+          return;
+        }
+
+        successBox.classList.remove("hidden");
+        successBox.textContent = "Account created. Please check your email inbox and confirm your account before signing in.";
+        setAuthTab("signin");
+      } catch (error) {
+        hideLoading();
+        errorBox.classList.remove("hidden");
+        errorBox.textContent = error.message || "Sign up failed.";
+      }
+    });
+  </script>
+</body>
+</html>
