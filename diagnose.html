@@ -24,6 +24,58 @@
   <script src="assets/js/app.js"></script>
   <script>
     renderNavFooter("upload");
+
+    function renderScoreComparison(diagnostic, essay) {
+      const initialScore = essay.scoringHistory?.[0]?.band ?? diagnostic.previousBand ?? diagnostic.overallBandEstimate;
+      const latestScore = diagnostic.overallBandEstimate;
+      const delta = diagnostic.improvementDelta;
+      return `
+        <div class="glass-card score-comparison-card mb-4">
+          <div class="score-comparison-grid">
+            <div>
+              <p class="score-kicker">Initial Draft</p>
+              <p class="score-number">${Number(initialScore).toFixed(1)}</p>
+            </div>
+            <div>
+              <p class="score-kicker">Revised Draft</p>
+              <p class="score-number">${Number(latestScore).toFixed(1)}</p>
+            </div>
+            <div>
+              <p class="score-kicker">Improvement</p>
+              <p class="score-number ${delta > 0 ? "positive" : delta < 0 ? "negative" : ""}">${delta > 0 ? "+" : ""}${Number(delta || 0).toFixed(1)}</p>
+            </div>
+          </div>
+          <p class="score-comparison-note">Diagnosis and revision are now closed-loop: the revised score reflects the exact issues addressed in the previous diagnosis.</p>
+        </div>`;
+    }
+
+    function renderTargetedFixPlan(diagnostic) {
+      return `
+        <div class="glass-card mb-4">
+          <h3 class="card-title">Targeted Revision Plan</h3>
+          <p style="color:#64748b;margin-bottom:1rem;">Use this exact checklist in Revise. Each item corresponds to one diagnosed issue and one concrete repair action.</p>
+          <div class="revision-task-list">
+            ${diagnostic.issues.map((issue, index) => `
+              <div class="revision-task-card compact">
+                <div class="revision-task-header">
+                  <div>
+                    <p class="revision-task-order">Fix ${index + 1}</p>
+                    <h4>${issue.title}</h4>
+                  </div>
+                  <div class="revision-task-meta">
+                    <span class="badge ${badgeClass(issue.category)}">${CATEGORY_LABELS[issue.category]}</span>
+                    <span class="badge ${severityBadge(issue.severity)}">${issue.severity}</span>
+                  </div>
+                </div>
+                <p class="revision-task-location">📍 ${issue.location || "Specific sentence / paragraph"}</p>
+                <div class="revision-task-block"><strong>Problem:</strong><p>${issue.description}</p></div>
+                <div class="revision-task-block revision-action-block"><strong>Exactly what to change:</strong><p>${issue.suggestion}</p></div>
+              </div>
+            `).join("")}
+          </div>
+        </div>`;
+    }
+
     async function renderDiagnosisPage() {
       const state = await initPage({ requireAuth: true, containerId: "page-content" });
       if (state.redirected) return;
@@ -85,6 +137,7 @@
 
       ${renderRoundTimeline(essay)}
       ${renderScoreProgression(essay)}
+      ${isReEval ? renderScoreComparison(d, essay) : ""}
 
       <div id="diagnose-grid" style="display:block;">
         <div style="display:grid;gap:2rem;">
@@ -111,13 +164,14 @@
               <h3 class="card-title">🎯 Revision Priorities</h3>
               <ol class="priority-list">${d.revisionPriorities.map((p,i) => `<li><span class="priority-num">${i+1}</span>${p}</li>`).join("")}</ol>
             </div>
+            ${renderTargetedFixPlan(d)}
           </div>
           <div>
             <h2 style="font-family:var(--font-display);font-size:1.25rem;color:var(--sage-800);margin-bottom:1rem;">Diagnostic Issues (${d.issues.length})</h2>
             ${issuesHtml}
             <div class="action-bar">
-              <p><strong>What's next?</strong> Revise using guided hints, then request a re-evaluation to start Round ${(d.round||1)+1}.</p>
-              <a href="revise.html?id=${essay.id}" class="btn btn-primary">Guided Revision</a>
+              <p><strong>What's next?</strong> Move to Revise and fix these exact diagnosis items one by one. After revision, submit the new draft for a second score.</p>
+              <a href="revise.html?id=${essay.id}" class="btn btn-primary">Fix Diagnosed Issues →</a>
               <a href="journey.html" class="btn btn-outline">View Journey</a>
             </div>
           </div>
