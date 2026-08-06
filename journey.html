@@ -156,21 +156,34 @@
     }
 
     (async function initJourneyPage() {
-      const state = await initPage({ requireAuth: true, containerId: "page-root" });
-      if (state.redirected) return;
-      if (!state.configured) {
-        renderSetupRequired("page-root", "Add your Supabase keys in assets/js/config.js first.");
-        return;
-      }
+      try {
+        const state = await initPage({ requireAuth: true, containerId: "page-root" });
+        if (state.redirected) return;
+        if (!state.configured) {
+          renderSetupRequired("page-root", "Add your Supabase keys in assets/js/config.js first.");
+          return;
+        }
 
-      const data = await getAppData();
-      student = data.students[0];
-      essays = (data.essays || []).map(migrateEssay);
-      summary = computeSummary(essays);
-      m = student?.metrics;
-      hasJourneyData = essays.length > 0 && Array.isArray(m?.bandHistory) && m.bandHistory.length > 0;
-      selectedEssay = essays[0] || null;
-      renderPage();
+        const data = await getAppData();
+        student = data.students[0];
+        essays = (data.essays || []).map(migrateEssay);
+        summary = computeSummary(essays);
+        m = student?.metrics;
+        hasJourneyData = essays.length > 0 && Array.isArray(m?.bandHistory) && m.bandHistory.length > 0;
+        selectedEssay = essays[0] || null;
+        renderPage();
+      } catch (error) {
+        document.getElementById("page-root").innerHTML = `
+          <div class="glass-card empty-state">
+            <div class="icon">⚠️</div>
+            <p>We could not load the revision journey just now.</p>
+            <p style="color:#94a3b8;">${error?.message || "Please refresh the page and try again."}</p>
+            <div class="page-actions" style="justify-content:center;margin-top:1rem;">
+              <a href="upload.html" class="btn btn-primary">Go to Upload</a>
+              <a href="auth.html" class="btn btn-outline">Re-open Login</a>
+            </div>
+          </div>`;
+      }
     })();
   </script>
 </body>
