@@ -3,17 +3,24 @@ function initNav(activePage) {
     { href: "index.html", label: "Home", id: "home" },
     { href: "upload.html", label: "Upload Essay", id: "upload" },
     { href: "journey.html", label: "Revision Journey", id: "journey" },
-    { href: "teacher.html", label: "Teacher Mode", id: "teacher" },
+    { href: "teacher.html", label: "Teacher Mode", id: "teacher", adminOnly: true },
   ];
-  const navHtml = links.map((l) => `<a href="${l.href}" class="${l.id === activePage ? "active" : ""}">${l.label}</a>`).join("");
-  const mobileHtml = links.map((l) => `<a href="${l.href}">${l.label}</a>`).join("");
+  const navHtml = links.map((l) => `<a href="${l.href}" class="${l.id === activePage ? "active" : ""}" ${l.adminOnly ? "data-admin-link style=\"display:none;\"" : ""}>${l.label}</a>`).join("");
+  const mobileHtml = links.map((l) => `<a href="${l.href}" ${l.adminOnly ? "data-admin-link style=\"display:none;\"" : ""}>${l.label}</a>`).join("");
   document.querySelectorAll("[data-nav-desktop]").forEach((el) => {
-    el.innerHTML = navHtml + `<a href="upload.html" class="btn btn-primary" style="margin-left:0.5rem;padding:0.5rem 1.25rem;border-radius:0.75rem;color:white;">Start Revising</a>`;
+    el.innerHTML = navHtml
+      + `<a href="upload.html" class="btn btn-primary" style="margin-left:0.5rem;padding:0.5rem 1.25rem;border-radius:0.75rem;color:white;">Start Revising</a>`
+      + `<div class="nav-auth-slot" data-auth-slot></div>`;
   });
-  document.querySelectorAll("[data-nav-mobile]").forEach((el) => { el.innerHTML = mobileHtml; });
+  document.querySelectorAll("[data-nav-mobile]").forEach((el) => {
+    el.innerHTML = mobileHtml + `<div class="mobile-auth-slot" data-auth-slot style="padding:0.75rem 1rem;"></div>`;
+  });
   const toggle = document.getElementById("menu-toggle");
   const mobileNav = document.getElementById("mobile-nav");
   if (toggle && mobileNav) toggle.addEventListener("click", () => mobileNav.classList.toggle("open"));
+  if (typeof refreshAuthUI === "function") {
+    refreshAuthUI().catch(() => {});
+  }
 }
 
 function showLoading(message) {
