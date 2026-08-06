@@ -255,6 +255,15 @@ function normalizeProfile(profile, user) {
   };
 }
 
+function buildFallbackProfile(user, overrides = {}) {
+  return {
+    id: user.id,
+    email: overrides.email || user.email,
+    full_name: overrides.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "Student",
+    role: overrides.role || "student",
+  };
+}
+
 function buildStudentFromEssays(user, profile, essays) {
   const normalized = normalizeProfile(profile, user);
   normalized.metrics = createMetricsFromEssays(essays);
@@ -269,25 +278,20 @@ async function ensureProfile(user, overrides = {}) {
       .select("id, email, full_name, role")
       .eq("id", user.id)
       .maybeSingle();
-    if (error) throw error;
+    if (error) return { __error: error };
     return data;
   };
 
   let existing = await selectProfile();
-  if (existing) return existing;
+  if (existing && !existing.__error) return existing;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     await new Promise((resolve) => window.setTimeout(resolve, 400));
     existing = await selectProfile();
-    if (existing) return existing;
+    if (existing && !existing.__error) return existing;
   }
 
-  return {
-    id: user.id,
-    email: user.email,
-    full_name: overrides.full_name || user.user_metadata?.full_name || "",
-    role: overrides.role || "student",
-  };
+  return buildFallbackProfile(user, overrides);
 }
 
 async function getSession() {
@@ -326,7 +330,13 @@ async function refreshAuthUI() {
   let profile = null;
   if (isSupabaseConfigured()) {
     user = await getCurrentUser();
-    profile = user ? await getCurrentProfile() : null;
+    if (user) {
+      try {
+        profile = await getCurrentProfile();
+      } catch (error) {
+        profile = buildFallbackProfile(user);
+      }
+    }
   }
 
   authSlotNodes.forEach((node) => {
@@ -400,7 +410,14 @@ async function initPage(options = {}) {
     return { configured: true, redirected: true };
   }
 
-  const profile = user ? await ensureProfile(user) : null;
+  let profile = null;
+  if (user) {
+    try {
+      profile = await ensureProfile(user);
+    } catch (error) {
+      profile = buildFallbackProfile(user);
+    }
+  }
   if (requireAdmin && profile?.role !== "admin") {
     return {
       configured: true,
@@ -528,8 +545,18 @@ async function saveEssay(essay) {
 async function getAppData() {
   const user = await getCurrentUser();
   if (!user) return { students: [], essays: [] };
-  const profile = await ensureProfile(user);
-  const essays = await listEssaysForCurrentUser();
+  let profile;
+  try {
+    profile = await ensureProfile(user);
+  } catch (error) {
+    profile = buildFallbackProfile(user);
+  }
+  let essays = [];
+  try {
+    essays = await listEssaysForCurrentUser();
+  } catch (error) {
+    essays = [];
+  }
   return {
     students: [buildStudentFromEssays(user, profile, essays)],
     essays,
