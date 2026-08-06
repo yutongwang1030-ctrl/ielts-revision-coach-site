@@ -222,13 +222,79 @@ main {
   gap: 0.5rem;
 }
 
+.nav-account-card,
+.mobile-account-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--sage-100);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+}
+
+.nav-account-card {
+  padding: 0.4rem 0.5rem 0.4rem 0.4rem;
+}
+
+.mobile-account-card {
+  width: 100%;
+  justify-content: space-between;
+  padding: 0.85rem 0.9rem;
+}
+
+.nav-account-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.nav-avatar {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--sage-500), var(--sage-700));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-soft);
+  flex-shrink: 0;
+}
+
+.nav-account-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .nav-user {
-  font-size: 0.8rem;
-  color: var(--slate-500);
-  max-width: 9rem;
+  font-size: 0.82rem;
+  color: var(--sage-800);
+  font-weight: 600;
+  max-width: 10rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.nav-user-email {
+  font-size: 0.72rem;
+  color: var(--slate-500);
+  max-width: 10rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-account-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
 }
 
 @media (min-width: 768px) {
@@ -240,6 +306,21 @@ main {
   }
   .logo-sub {
     display: block;
+  }
+}
+
+@media (max-width: 767px) {
+  .mobile-account-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav-account-actions {
+    width: 100%;
+  }
+
+  .nav-account-actions .btn {
+    flex: 1;
   }
 }
 
