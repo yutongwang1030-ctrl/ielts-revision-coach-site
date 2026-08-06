@@ -238,6 +238,51 @@ function generateRevisionExplanations(original, revised) {
   });
 }
 
+function buildRevisionChecklistFromDiagnostic(diagnostic, existingChecklist = []) {
+  const existingMap = new Map((existingChecklist || []).map((item) => [item.id, item]));
+  const issues = diagnostic?.issues || [];
+  const errorDetails = diagnostic?.errorDetails || [];
+
+  return issues.map((issue, index) => {
+    const matchedDetail = errorDetails.find((detail) =>
+      detail.id === issue.id ||
+      (detail.category === issue.category && detail.subcategory === issue.subcategory) ||
+      (issue.location && detail.excerpt && issue.location.includes(`¶${detail.paragraph}`))
+    );
+
+    const task = {
+      id: issue.id || `task-${index + 1}`,
+      order: index + 1,
+      title: issue.title,
+      category: issue.category,
+      severity: issue.severity,
+      location: issue.location || (matchedDetail ? `Paragraph ${matchedDetail.paragraph}, sentence ${matchedDetail.sentence}` : "Specific sentence / paragraph"),
+      problem: issue.description,
+      evidence: matchedDetail?.excerpt || matchedDetail?.text || "",
+      explanation: matchedDetail?.explanation || "",
+      action: issue.suggestion,
+      doneCriteria: issue.reflectivePrompt || "Revise this exact point before moving on.",
+      resolved: false,
+    };
+
+    if (existingMap.has(task.id)) {
+      return { ...task, resolved: !!existingMap.get(task.id).resolved };
+    }
+    return task;
+  });
+}
+
+function summarizeRevisionCompletion(checklist = []) {
+  const total = checklist.length;
+  const resolved = checklist.filter((item) => item.resolved).length;
+  return {
+    total,
+    resolved,
+    allResolved: total > 0 && resolved === total,
+    remaining: Math.max(0, total - resolved),
+  };
+}
+
 function generateReflection(essay) {
   return new Promise((resolve) => {
     setTimeout(() => {
