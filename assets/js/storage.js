@@ -263,30 +263,31 @@ function buildStudentFromEssays(user, profile, essays) {
 
 async function ensureProfile(user, overrides = {}) {
   const client = getSupabase();
-  const { data: existing, error: existingError } = await client
-    .from("profiles")
-    .select("id, email, full_name, role")
-    .eq("id", user.id)
-    .maybeSingle();
+  const selectProfile = async () => {
+    const { data, error } = await client
+      .from("profiles")
+      .select("id, email, full_name, role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  };
 
-  if (existingError) throw existingError;
+  let existing = await selectProfile();
   if (existing) return existing;
 
-  const payload = {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+    existing = await selectProfile();
+    if (existing) return existing;
+  }
+
+  return {
     id: user.id,
     email: user.email,
     full_name: overrides.full_name || user.user_metadata?.full_name || "",
     role: overrides.role || "student",
   };
-
-  const { data, error } = await client
-    .from("profiles")
-    .upsert(payload, { onConflict: "id" })
-    .select("id, email, full_name, role")
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 async function getSession() {
@@ -415,9 +416,6 @@ async function signUpWithEmail({ email, password, fullName }) {
     },
   });
   if (error) throw error;
-  if (data.user) {
-    await ensureProfile(data.user, { full_name: fullName });
-  }
   return data;
 }
 
