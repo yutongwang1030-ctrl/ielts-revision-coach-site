@@ -18,19 +18,32 @@
   </header>
   <main><div class="section-container" style="padding:2.5rem 1.25rem;" id="page-content"></div></main>
   <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/config.js"></script>
   <script src="assets/js/storage.js"></script>
   <script src="assets/js/app.js"></script>
   <script>
     renderNavFooter("upload");
-    const essayId = getQueryParam("id");
-    const essay = essayId ? getEssay(essayId) : null;
-    if (!essay || !essay.diagnostic) { window.location.href = "upload.html"; }
+    async function renderDiagnosisPage() {
+      const state = await initPage({ requireAuth: true, containerId: "page-content" });
+      if (state.redirected) return;
+      if (!state.configured) {
+        renderSetupRequired("page-content", "Add your Supabase keys in assets/js/config.js first.");
+        return;
+      }
 
-    const d = essay.diagnostic;
-    const v0 = essay.versions[0];
-    const isReEval = d.round > 1;
+      const essayId = getQueryParam("id");
+      const essay = essayId ? await getEssay(essayId) : null;
+      if (!essay || !essay.diagnostic) {
+        window.location.href = "upload.html";
+        return;
+      }
 
-    const criteriaHtml = d.criteria.map((c) => `
+      const d = essay.diagnostic;
+      const v0 = essay.versions[0];
+      const isReEval = d.round > 1;
+
+      const criteriaHtml = d.criteria.map((c) => `
       <div class="glass-card criterion-card">
         <div class="flex-between">
           <span style="font-size:0.875rem;font-weight:500;">${c.label}</span>
@@ -42,7 +55,7 @@
         ${c.actionableAdvice ? `<div class="advice-box">💡 ${c.actionableAdvice}</div>` : ""}
       </div>`).join("");
 
-    const issuesHtml = d.issues.map((issue) => `
+      const issuesHtml = d.issues.map((issue) => `
       <div class="glass-card issue-card">
         <div class="issue-header">
           <h4>${issue.title}</h4>
@@ -56,7 +69,7 @@
         <div class="reflective">💬 ${issue.reflectivePrompt}</div>
       </div>`).join("");
 
-    document.getElementById("page-content").innerHTML = `
+      document.getElementById("page-content").innerHTML = `
       ${renderWorkflowBanner("diagnose")}
       <div class="flex-between mb-4">
         <div>
@@ -111,6 +124,9 @@
         </div>
       </div>
       <style>@media(min-width:1024px){#diagnose-grid>div{grid-template-columns:1fr 1.5fr!important;display:grid!important;}}</style>`;
+    }
+
+    renderDiagnosisPage();
   </script>
 </body>
 </html>
