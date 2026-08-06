@@ -30,14 +30,15 @@
     </div>
   </main>
   <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/config.js"></script>
   <script src="assets/js/storage.js"></script>
   <script src="assets/js/app.js"></script>
   <script>
     renderNavFooter("teacher");
-    const data = getAppData();
-    const students = data.students;
-    const allEssays = data.essays.map(migrateEssay);
-    let selectedId = students[0]?.id;
+    let students = [];
+    let allEssays = [];
+    let selectedId = null;
 
     function renderStudentList() {
       document.getElementById("student-list").innerHTML = `
@@ -104,9 +105,26 @@
       ).join("")}</div>`;
     }
 
-    renderStudentList();
-    renderDetail();
-    document.getElementById("teacher-grid").style.gridTemplateColumns = window.innerWidth >= 1024 ? "1fr 2fr" : "1fr";
+    (async function initTeacherPage() {
+      const state = await getTeacherDashboardData();
+      if (state.redirected) return;
+      if (!state.configured) {
+        renderSetupRequired("student-detail", "Add your Supabase keys in assets/js/config.js first.");
+        return;
+      }
+      if (state.unauthorized) {
+        document.getElementById("student-list").innerHTML = `<div class="glass-card empty-state"><p>Teacher Mode is only available for admin accounts.</p></div>`;
+        document.getElementById("student-detail").innerHTML = "";
+        return;
+      }
+
+      students = state.students || [];
+      allEssays = (state.essays || []).map(migrateEssay);
+      selectedId = students[0]?.id;
+      renderStudentList();
+      renderDetail();
+      document.getElementById("teacher-grid").style.gridTemplateColumns = window.innerWidth >= 1024 ? "1fr 2fr" : "1fr";
+    })();
   </script>
 </body>
 </html>
