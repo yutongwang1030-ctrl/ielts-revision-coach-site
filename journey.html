@@ -18,19 +18,18 @@
   </header>
   <main><div class="section-container" style="padding:2.5rem 1.25rem;" id="page-root"></div></main>
   <footer class="footer"><div class="section-container footer-bottom">Revision Coach</div></footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/config.js"></script>
   <script src="assets/js/storage.js"></script>
   <script src="assets/js/app.js"></script>
   <script>
     renderNavFooter("journey");
-    const studentId = getCurrentStudentId();
-    const data = getAppData();
-    const student = data.students.find(s => s.id === studentId);
-    const essays = data.essays.filter(e => e.studentId === studentId).map(migrateEssay);
-    const summary = computeSummary(essays);
-    const m = student?.metrics;
-    const hasJourneyData = essays.length > 0 && Array.isArray(m?.bandHistory) && m.bandHistory.length > 0;
-
-    let selectedEssay = essays[0] || null;
+    let essays = [];
+    let student;
+    let summary;
+    let m;
+    let hasJourneyData = false;
+    let selectedEssay = null;
     let selectedCategory = "all";
 
     function renderBandChart() {
@@ -156,7 +155,23 @@
       if (sel) sel.addEventListener("change", () => { selectedEssay = essays.find(e => e.id === sel.value); selectedCategory = "all"; document.getElementById("error-explorer").innerHTML = renderErrorExplorer(); bindErrorExplorer(); });
     }
 
-    renderPage();
+    (async function initJourneyPage() {
+      const state = await initPage({ requireAuth: true, containerId: "page-root" });
+      if (state.redirected) return;
+      if (!state.configured) {
+        renderSetupRequired("page-root", "Add your Supabase keys in assets/js/config.js first.");
+        return;
+      }
+
+      const data = await getAppData();
+      student = data.students[0];
+      essays = (data.essays || []).map(migrateEssay);
+      summary = computeSummary(essays);
+      m = student?.metrics;
+      hasJourneyData = essays.length > 0 && Array.isArray(m?.bandHistory) && m.bandHistory.length > 0;
+      selectedEssay = essays[0] || null;
+      renderPage();
+    })();
   </script>
 </body>
 </html>
