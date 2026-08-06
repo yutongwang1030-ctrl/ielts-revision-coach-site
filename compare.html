@@ -30,6 +30,31 @@
     let revised;
     let explanations = [];
 
+    function renderScoreClosure() {
+      const initialScore = essay.scoringHistory?.[0]?.band ?? essay.diagnostic?.previousBand ?? null;
+      const latestScore = essay.scoringHistory?.[essay.scoringHistory.length - 1]?.band ?? essay.diagnostic?.overallBandEstimate ?? null;
+      const delta = latestScore != null && initialScore != null ? Math.round((latestScore - initialScore) * 10) / 10 : null;
+      const completion = essay.lastRevisionResult || null;
+      return `
+        <div class="glass-card score-comparison-card mb-4">
+          <div class="score-comparison-grid">
+            <div>
+              <p class="score-kicker">Initial Score</p>
+              <p class="score-number">${initialScore != null ? Number(initialScore).toFixed(1) : "—"}</p>
+            </div>
+            <div>
+              <p class="score-kicker">Revised Score</p>
+              <p class="score-number">${latestScore != null ? Number(latestScore).toFixed(1) : "—"}</p>
+            </div>
+            <div>
+              <p class="score-kicker">Score Change</p>
+              <p class="score-number ${delta > 0 ? "positive" : delta < 0 ? "negative" : ""}">${delta != null ? `${delta > 0 ? "+" : ""}${Number(delta).toFixed(1)}` : "—"}</p>
+            </div>
+          </div>
+          <p class="score-comparison-note">${completion ? `Diagnosis issues completed: ${completion.resolvedIssues}/${completion.totalIssues}.` : "This screen closes the loop by comparing the old draft score with the revised draft score."}</p>
+        </div>`;
+    }
+
     async function ensureExplanations() {
       if (explanations.length === 0 && revised.content !== original.content) {
         showLoading("Generating revision logic explanations...");
@@ -72,6 +97,7 @@
         </div>
         ${renderRoundTimeline(essay)}
         ${renderScoreProgression(essay)}
+        ${renderScoreClosure()}
 
         <div id="tab-container">
           <div class="tab-bar">
@@ -97,7 +123,7 @@
         </div>
 
         <div class="action-bar">
-          <p><strong>Ready for the next step?</strong> Request re-scoring to see your band progression, or generate your learning reflection.</p>
+          <p><strong>Closed loop complete:</strong> you can now see the original score, revised score, and the exact revision logic that produced the improvement.</p>
           <a href="revise.html?id=${essay.id}" class="btn btn-outline">Another Revision Round</a>
           <a href="reflect.html?id=${essay.id}" class="btn btn-primary">Generate Reflection Summary</a>
         </div>`;
