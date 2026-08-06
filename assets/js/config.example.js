@@ -1,0 +1,6 @@
+window.APP_CONFIG = {
+  SUPABASE_URL: "https://YOUR_PROJECT.supabase.co",
+  SUPABASE_ANON_KEY: "YOUR_SUPABASE_PUBLISHABLE_KEY",
+  SCORE_ENDPOINT: "/api/score",
+  ENABLE_MOCK_SCORING: false,
+};
