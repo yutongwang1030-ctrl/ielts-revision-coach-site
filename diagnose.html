@@ -49,33 +49,6 @@
         </div>`;
     }
 
-    function renderTargetedFixPlan(diagnostic) {
-      return `
-        <div class="glass-card mb-4">
-          <h3 class="card-title">Targeted Revision Plan</h3>
-          <p style="color:#64748b;margin-bottom:1rem;">Use this exact checklist in Revise. Each item corresponds to one diagnosed issue and one concrete repair action.</p>
-          <div class="revision-task-list">
-            ${diagnostic.issues.map((issue, index) => `
-              <div class="revision-task-card compact">
-                <div class="revision-task-header">
-                  <div>
-                    <p class="revision-task-order">Fix ${index + 1}</p>
-                    <h4>${issue.title}</h4>
-                  </div>
-                  <div class="revision-task-meta">
-                    <span class="badge ${badgeClass(issue.category)}">${CATEGORY_LABELS[issue.category]}</span>
-                    <span class="badge ${severityBadge(issue.severity)}">${issue.severity}</span>
-                  </div>
-                </div>
-                <p class="revision-task-location">📍 ${issue.location || "Specific sentence / paragraph"}</p>
-                <div class="revision-task-block"><strong>Problem:</strong><p>${issue.description}</p></div>
-                <div class="revision-task-block revision-action-block"><strong>Exactly what to change:</strong><p>${issue.suggestion}</p></div>
-              </div>
-            `).join("")}
-          </div>
-        </div>`;
-    }
-
     async function renderDiagnosisPage() {
       const state = await initPage({ requireAuth: true, containerId: "page-content" });
       if (state.redirected) return;
@@ -115,10 +88,12 @@
           ${issue.subcategory ? `<span class="badge badge-default">${SUBCATEGORY_LABELS[issue.subcategory] || issue.subcategory}</span>` : ""}
           <span class="badge ${severityBadge(issue.severity)}">${issue.severity}</span>
         </div>
-        <p style="font-size:0.875rem;color:#475569;">${issue.description}</p>
+        <p style="font-size:0.875rem;color:#475569;"><strong>Issue to Fix 问题定位：</strong>${issue.description}</p>
         ${issue.location ? `<p style="font-size:0.75rem;color:#94a3b8;font-style:italic;">📍 ${issue.location}</p>` : ""}
-        <div class="suggestion-box"><strong>Suggestion:</strong> ${issue.suggestion}</div>
-        <div class="reflective">💬 ${issue.reflectivePrompt}</div>
+        ${issue.rewriteExample?.original ? `<div class="revision-task-block"><strong>Quoted Student Sentence 学生原句：</strong><p>"${issue.rewriteExample.original}"</p></div>` : ""}
+        <div class="suggestion-box"><strong>Fix Direction 修改动作：</strong> ${issue.suggestion}</div>
+        ${issue.rewriteExample?.sample ? `<div class="advice-box">🛠 <strong>Targeted Rewrite Example 修改示范：</strong> ${issue.rewriteExample.sample}</div>` : ""}
+        <div class="reflective">💬 <strong>Completion Standard 完成标准：</strong> ${issue.reflectivePrompt}</div>
       </div>`).join("");
 
       document.getElementById("page-content").innerHTML = `
@@ -143,35 +118,35 @@
         <div style="display:grid;gap:2rem;">
           <div>
             <div class="glass-card mb-4" style="background:linear-gradient(135deg,var(--sage-50),white);">
-              <p style="font-size:0.875rem;color:var(--sage-600);font-weight:500;">Estimated Band (IELTS-calibrated)</p>
+              <p style="font-size:0.875rem;color:var(--sage-600);font-weight:500;">Estimated Band (IELTS-calibrated) 预估分数</p>
               <div style="display:flex;align-items:baseline;gap:0.75rem;">
                 <p class="band-score">${d.overallBandEstimate.toFixed(1)}</p>
                 ${d.improvementDelta != null ? formatBandDelta(d.improvementDelta) : ""}
               </div>
               ${isReEval && d.previousBand ? `<p class="band-note">Previous: Band ${d.previousBand} → Now: Band ${d.overallBandEstimate}</p>` : ""}
-              <p class="band-note">Scored against official IELTS criteria. Stricter than generic AI tools.</p>
+              <p class="band-note">Scored against official IELTS criteria. 按 IELTS 四项标准估分，比普通泛化 AI 更严格。</p>
             </div>
             ${criteriaHtml}
             <div class="glass-card coach-message mb-4">
-              <h3 class="card-title">💬 Coach's Message</h3>
+              <h3 class="card-title">💬 Coach's Message 教练提示</h3>
               <p style="color:#334155;line-height:1.7;">${d.encouragingSummary}</p>
             </div>
             <div class="glass-card mb-4">
-              <h3 class="card-title">✓ Strengths</h3>
+              <h3 class="card-title">✓ Strengths 优点表现</h3>
               <ul class="strength-list">${d.strengths.map(s => `<li>✓ ${s}</li>`).join("")}</ul>
             </div>
             <div class="glass-card">
-              <h3 class="card-title">🎯 Revision Priorities</h3>
+              <h3 class="card-title">🎯 Revision Priorities 修改优先级</h3>
               <ol class="priority-list">${d.revisionPriorities.map((p,i) => `<li><span class="priority-num">${i+1}</span>${p}</li>`).join("")}</ol>
             </div>
-            ${renderTargetedFixPlan(d)}
           </div>
           <div>
-            <h2 style="font-family:var(--font-display);font-size:1.25rem;color:var(--sage-800);margin-bottom:1rem;">Diagnostic Issues (${d.issues.length})</h2>
+            <h2 style="font-family:var(--font-display);font-size:1.25rem;color:var(--sage-800);margin-bottom:1rem;">Issues to Fix 待修改问题 (${d.issues.length})</h2>
+            <p style="font-size:0.875rem;color:#64748b;margin-bottom:1rem;">下面这份清单是唯一需要带入 Revise 的问题列表。每一条都已经给出原句锚点、问题解释、修改动作和示范方向，不再保留另一套重复计划。</p>
             ${issuesHtml}
             <div class="action-bar">
-              <p><strong>What's next?</strong> Move to Revise and fix these exact diagnosis items one by one. After revision, submit the new draft for a second score.</p>
-              <a href="revise.html?id=${essay.id}" class="btn btn-primary">Fix Diagnosed Issues →</a>
+              <p><strong>Next Step 下一步：</strong>进入 Revise，只处理上面这份 <code>Issues to Fix</code> 清单；每修完一条，就完成一处对应整改。</p>
+              <a href="revise.html?id=${essay.id}" class="btn btn-primary">Go Fix These Issues →</a>
               <a href="journey.html" class="btn btn-outline">View Journey</a>
             </div>
           </div>
