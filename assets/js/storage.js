@@ -155,6 +155,8 @@ function migrateEssay(essay) {
   if (!essay.currentRound) essay.currentRound = essay.revisionRounds.length;
   if (!essay.hints) essay.hints = [];
   if (!essay.hintsUnlocked) essay.hintsUnlocked = 1;
+  if (!essay.revisionChecklist) essay.revisionChecklist = [];
+  if (!essay.lastRevisionResult) essay.lastRevisionResult = null;
   return essay;
 }
 
