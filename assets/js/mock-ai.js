@@ -262,11 +262,17 @@ function buildRevisionChecklistFromDiagnostic(diagnostic, existingChecklist = []
       explanation: matchedDetail?.explanation || "",
       action: issue.suggestion,
       doneCriteria: issue.reflectivePrompt || "Revise this exact point before moving on.",
+      rewriteExample: issue.rewriteExample || null,
       resolved: false,
     };
 
     if (existingMap.has(task.id)) {
-      return { ...task, resolved: !!existingMap.get(task.id).resolved };
+      const existing = existingMap.get(task.id);
+      return {
+        ...task,
+        resolved: !!existing.resolved,
+        rewriteExample: existing.rewriteExample || task.rewriteExample,
+      };
     }
     return task;
   });
