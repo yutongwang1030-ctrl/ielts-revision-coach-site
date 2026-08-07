@@ -52,23 +52,50 @@
         </div>
         <p class="revision-task-location">📍 ${escapeHtml(item.location)}</p>
         <div class="revision-task-block">
-          <strong>Diagnosis found:</strong>
+          <strong>Diagnosis Finding 诊断发现：</strong>
           <p>${escapeHtml(item.problem)}</p>
         </div>
-        ${item.evidence ? `<div class="revision-task-block"><strong>Text to fix:</strong><p>"${escapeHtml(item.evidence)}"</p></div>` : ""}
-        ${item.explanation ? `<div class="revision-task-block"><strong>Why it hurts the score:</strong><p>${escapeHtml(item.explanation)}</p></div>` : ""}
+        ${item.evidence ? `<div class="revision-task-block"><strong>Quoted Student Sentence 学生原句：</strong><p>"${escapeHtml(item.evidence)}"</p></div>` : ""}
+        ${item.explanation ? `<div class="revision-task-block"><strong>Why It Lowers the Band 为什么会扣分：</strong><p>${escapeHtml(item.explanation)}</p></div>` : ""}
         <div class="revision-task-block revision-action-block">
-          <strong>Revise like this:</strong>
+          <strong>Action Step 修改动作：</strong>
           <p>${escapeHtml(item.action)}</p>
         </div>
         <div class="revision-task-block">
-          <strong>Completion standard:</strong>
+          <strong>Done Standard 完成标准：</strong>
           <p>${escapeHtml(item.doneCriteria)}</p>
         </div>
         <label class="revision-checkline">
           <input type="checkbox" data-task-resolved="${item.id}" ${item.resolved ? "checked" : ""} />
-          <span>I revised this exact Diagnosis issue.</span>
+          <span>I revise this exact diagnosis issue 我已完成这一条对应修改。</span>
         </label>
+      </div>`;
+    }
+
+    function renderRevisionExample(item) {
+      const example = item.rewriteExample || {};
+      return `<div class="glass-card revision-example-card">
+        <div class="revision-task-header">
+          <div>
+            <p class="revision-task-order">Model for Task ${item.order}</p>
+            <h4>${item.title}</h4>
+          </div>
+          <div class="revision-task-meta">
+            <span class="badge ${badgeClass(item.category)}">${CATEGORY_LABELS[item.category] || item.category}</span>
+          </div>
+        </div>
+        <div class="revision-task-block">
+          <strong>Original Sentence 原句定位：</strong>
+          <p>${escapeHtml(example.original || item.evidence || item.problem)}</p>
+        </div>
+        <div class="revision-task-block">
+          <strong>Guidance 修改说明：</strong>
+          <p>${escapeHtml(example.guidance || item.action)}</p>
+        </div>
+        <div class="revision-task-block revision-action-block">
+          <strong>Sample Revision 示范改法：</strong>
+          <p>${escapeHtml(example.sample || item.action)}</p>
+        </div>
       </div>`;
     }
 
@@ -78,15 +105,28 @@
         <div class="glass-card checklist-summary-card">
           <div>
             <p class="step-label">Diagnosis → Revise Lockstep</p>
-            <h3 class="card-title" style="margin-bottom:0.35rem;">Revise only these diagnosed issues</h3>
-            <p style="color:#64748b;">No new questions, no broad reflection prompts. Work through each diagnosed problem one by one.</p>
+            <h3 class="card-title" style="margin-bottom:0.35rem;">Revise only these diagnosed issues 只改诊断里已经定位的问题</h3>
+            <p style="color:#64748b;">No new questions, no broad reflection prompts. 按照这份清单逐条修，一条 Diagnosis 对应一条具体修改。</p>
           </div>
           <div class="checklist-progress">
             <strong>${summary.resolved}/${summary.total}</strong>
-            <span>issues revised</span>
+            <span>issues revised 已完成问题数</span>
           </div>
         </div>
         <div class="revision-task-list">${revisionChecklist.map(renderChecklistItem).join("")}</div>
+      `;
+    }
+
+    function renderRevisionExamplesPanel() {
+      return `
+        <div class="glass-card checklist-summary-card">
+          <div>
+            <p class="step-label">Original → Example Rewrite</p>
+            <h3 class="card-title" style="margin-bottom:0.35rem;">Targeted revision models 对照修改示范</h3>
+            <p style="color:#64748b;">Each card quotes the original sentence and shows the kind of change expected. 每张卡片都对应左侧某一条问题，先看原句，再参考示范改法。</p>
+          </div>
+        </div>
+        <div class="revision-task-list">${revisionChecklist.map(renderRevisionExample).join("")}</div>
       `;
     }
 
@@ -120,12 +160,18 @@
           </div>
           <div class="score-closure-hint">${completion.allResolved ? "All diagnosis issues marked revised. Submit for new scoring." : `Finish ${completion.remaining} more issue(s) before re-scoring.`}</div>
         </div>
-        <div style="display:grid;gap:2rem;">
-          <div><h2 style="font-family:var(--font-display);font-size:1.125rem;margin-bottom:1rem;">Diagnosis Issues to Fix</h2><div id="checklist-panel">${renderChecklistPanel()}</div></div>
-          <div class="glass-card">
-            <div class="flex-between mb-4"><h3 class="card-title" style="margin:0;">✏️ Your Revision</h3><span class="word-count">${wc} words</span></div>
-            <textarea id="revision-editor" rows="20" style="font-family:ui-monospace,monospace;font-size:0.875rem;"></textarea>
-            <p class="hint-text">Revise in your own words, but only target the diagnosed issues listed on the left. Each checked item should correspond to a real change in this draft.</p>
+        <div class="revise-split-layout">
+          <div>
+            <h2 style="font-family:var(--font-display);font-size:1.125rem;margin-bottom:1rem;">Diagnosis Issues to Fix 待修改问题清单</h2>
+            <div id="checklist-panel">${renderChecklistPanel()}</div>
+          </div>
+          <div style="display:grid;gap:1.25rem;">
+            <div id="examples-panel">${renderRevisionExamplesPanel()}</div>
+            <div class="glass-card">
+              <div class="flex-between mb-4"><h3 class="card-title" style="margin:0;">✏️ Your Revision 学生修改区</h3><span class="word-count">${wc} words</span></div>
+              <textarea id="revision-editor" rows="20" style="font-family:ui-monospace,monospace;font-size:0.875rem;"></textarea>
+              <p class="hint-text">Revise in your own words, but only target the diagnosed issues listed on the left. 右侧修改内容必须和左侧问题一一对应，每勾选一项，就应当在稿子里看到那一处真实变化。</p>
+            </div>
           </div>
         </div>
         <div class="action-bar" id="post-save-actions" style="display:none;">
@@ -134,7 +180,10 @@
           <button type="button" class="btn btn-secondary" id="reeval-btn">Generate New Score</button>
           <a href="reflect.html?id=${essay.id}" class="btn btn-outline">Writing Reflection</a>
         </div>
-        <style>@media(min-width:1024px){#page-root>div:nth-of-type(3){grid-template-columns:1fr 1fr;display:grid;}}</style>`;
+        <style>
+          .revise-split-layout{display:grid;gap:2rem;}
+          @media(min-width:1024px){.revise-split-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;}}
+        </style>`;
       document.getElementById("revision-editor").value = content;
       bindEvents();
     }
@@ -187,7 +236,7 @@
     async function submitForReEvaluation() {
       const completion = summarizeRevisionCompletion(revisionChecklist);
       if (!completion.allResolved) {
-        alert(`Please revise all ${completion.total} diagnosed issues before requesting a new score. ${completion.remaining} item(s) still remain unchecked.`);
+        alert(`Please revise all ${completion.total} diagnosed issues before requesting a new score. 你还有 ${completion.remaining} 条问题没有完成对应修改。`);
         return;
       }
 
